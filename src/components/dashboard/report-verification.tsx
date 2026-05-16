@@ -5,6 +5,7 @@ import { FileScan, ShieldAlert, ShieldCheck, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FeedbackToast, type FeedbackToastState } from "@/components/ui/feedback-toast";
 
 type VerificationResult = {
   status: string;
@@ -14,32 +15,69 @@ type VerificationResult = {
   verifiedBadge: boolean;
 };
 
-export function ReportVerification() {
+export function ReportVerification({ onSaved }: { onSaved?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackToastState>(null);
   const [isPending, startTransition] = useTransition();
+
+  function showFeedback(nextFeedback: FeedbackToastState) {
+    setFeedback(nextFeedback);
+    window.setTimeout(() => setFeedback(null), 3600);
+  }
 
   function verify() {
     if (!file) return;
 
     startTransition(async () => {
-      const response = await fetch("/api/ai/verify-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: file.name,
-          fileName: file.name,
-          fileType: file.type,
-          extractedText: "Patient report from verified hospital with lab reference range and doctor signature."
-        })
-      });
-      const data = await response.json();
-      setResult(data.verification);
+      try {
+        const response = await fetch("/api/ai/verify-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: file.name,
+            fileName: file.name,
+            fileType: file.type,
+            extractedText: "Patient report from verified hospital with lab reference range and doctor signature."
+          })
+        });
+        const data = await response.json();
+        setResult(data.verification);
+
+        const saveResponse = await fetch("/api/reports", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: file.name,
+            fileName: file.name,
+            fileType: file.type || "application/octet-stream",
+            ocrText: data.verification?.extractedText,
+            verificationStatus: data.verification?.status ?? "PENDING",
+            aiConfidence: data.verification?.confidence ?? 0,
+            flags: data.verification?.flags ?? []
+          })
+        });
+        const saved = await saveResponse.json().catch(() => null);
+
+        if (!saveResponse.ok) {
+          throw new Error(saved?.error ?? "Report verified but could not be saved");
+        }
+
+        showFeedback({ type: "success", message: "Report verified and saved to patient records." });
+        onSaved?.();
+        window.dispatchEvent(new CustomEvent("meditrack:data-refresh"));
+      } catch (error) {
+        showFeedback({
+          type: "error",
+          message: error instanceof Error ? error.message : "Unable to verify and save report."
+        });
+      }
     });
   }
 
   return (
     <Card>
+      <FeedbackToast feedback={feedback} />
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">

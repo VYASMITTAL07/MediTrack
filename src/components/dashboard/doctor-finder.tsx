@@ -1,14 +1,59 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { MapPin, ShieldCheck, Star, Video } from "lucide-react";
-import { doctors } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+type DoctorCard = {
+  id: string;
+  name: string;
+  specialty: string;
+  rating: number;
+  reviews: number;
+  distance: string;
+  experience: number;
+  fee: number;
+  availability: string;
+  nextSlot: string;
+  emergency: boolean;
+  image: string;
+  clinic: string;
+  verified: boolean;
+};
+
 export function DoctorFinder() {
+  const [doctors, setDoctors] = useState<DoctorCard[]>([]);
+  const [selectedSpecialty, setSelectedSpecialty] = useState("All specializations");
+
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/doctors")
+      .then((response) => response.json())
+      .then((data) => {
+        if (mounted) setDoctors(data.doctors ?? []);
+      })
+      .catch(() => {
+        if (mounted) setDoctors([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const filteredDoctors =
+    selectedSpecialty === "All specializations"
+      ? doctors
+      : doctors.filter((doctor) => doctor.specialty === selectedSpecialty);
+
+  function selectDoctor(doctor: DoctorCard) {
+    window.dispatchEvent(new CustomEvent("meditrack:doctor-selected", { detail: doctor }));
+  }
+
   return (
     <Card>
       <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -18,7 +63,11 @@ export function DoctorFinder() {
           </p>
           <h3 className="mt-2 text-2xl font-bold">Available specialists</h3>
         </div>
-        <select className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none">
+        <select
+          value={selectedSpecialty}
+          onChange={(event) => setSelectedSpecialty(event.target.value)}
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none"
+        >
           <option>All specializations</option>
           <option>Cardiology</option>
           <option>Neurology</option>
@@ -27,7 +76,12 @@ export function DoctorFinder() {
       </div>
 
       <div className="grid gap-3">
-        {doctors.map((doctor) => (
+        {filteredDoctors.length === 0 && (
+          <p className="rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
+            No doctors are available yet.
+          </p>
+        )}
+        {filteredDoctors.map((doctor) => (
           <article key={doctor.id} className="rounded-lg border border-border bg-background p-3">
             <div className="flex flex-col gap-4 sm:flex-row">
               <div className="relative h-36 w-full shrink-0 overflow-hidden rounded-md sm:h-32 sm:w-32">
@@ -66,7 +120,7 @@ export function DoctorFinder() {
                     <span className="font-bold text-primary">{doctor.availability}</span>
                     <span className="text-muted-foreground"> - Next {doctor.nextSlot}</span>
                   </p>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => selectDoctor(doctor)}>
                     <Video className="mr-2 size-4" />
                     Select doctor
                   </Button>

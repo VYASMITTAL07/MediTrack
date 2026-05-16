@@ -6,7 +6,17 @@ import { formatDateTime } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-export function MedicalTimeline() {
+type TimelineItem = {
+  id?: string;
+  date: string;
+  title: string;
+  type: string;
+  summary: string;
+  verified: boolean;
+  aiSummary: string;
+};
+
+export function MedicalTimeline({ items = medicalTimeline }: { items?: TimelineItem[] }) {
   return (
     <Card>
       <div className="mb-6 flex items-center justify-between gap-4">
@@ -23,8 +33,13 @@ export function MedicalTimeline() {
       </div>
 
       <div className="space-y-4">
-        {medicalTimeline.map((item) => (
-          <article key={`${item.date}-${item.title}`} className="rounded-lg border border-border bg-background p-4">
+        {items.length === 0 && (
+          <p className="rounded-lg border border-border bg-background p-4 text-sm text-muted-foreground">
+            No medical records have been saved yet.
+          </p>
+        )}
+        {items.map((item) => (
+          <article key={item.id ?? `${item.date}-${item.title}`} className="rounded-lg border border-border bg-background p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{item.type}</Badge>
               {item.verified && (

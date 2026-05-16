@@ -74,7 +74,9 @@ io.on("connection", (socket) => {
 
     holds.delete(slotId);
     booked.add(slotId);
-    io.emit("slot:booked", { slotId, userId, bookedAt: new Date().toISOString() });
+    const bookedAt = new Date().toISOString();
+    io.emit("slot:booked", { slotId, userId, bookedAt });
+    io.emit("slot:updated", { slotId, available: false, bookedAt });
   });
 
   socket.on("slot:release", ({ slotId, userId }) => {
@@ -87,5 +89,5 @@ io.on("connection", (socket) => {
 });
 
 httpServer.listen(port, () => {
-  console.log(`AI - MediTrack ready on http://${hostname}:${port}`);
+  console.log(`MediTrack ready on http://${hostname}:${port}`);
 });
