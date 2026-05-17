@@ -1,109 +1,269 @@
-# MediTrack Medical Record Management System
+# 🏥 MediTrack — AI Powered Healthcare Management Platform
 
-A production-ready full-stack starter for an AI-powered healthcare SaaS platform with separate patient, doctor, and admin portals, role-specific login/register pages, password sign-in with optional email OTP verification, Aadhaar/face verification UI, real-time appointment booking, AI symptom analysis, medical history timelines, report verification, PostgreSQL models, Cloudinary-ready uploads, notifications, and Google Maps-ready doctor discovery.
+🚀 **Live Demo:** https://meditrack-six-psi.vercel.app/
 
-## Stack
+MediTrack is a production-style full-stack healthcare SaaS platform built for patients, doctors, and healthcare administrators. The platform combines 🤖 AI-powered healthcare assistance, 📋 medical record management, ⚡ realtime appointment booking, 🧠 intelligent report verification, and 🔐 secure role-based authentication into one scalable ecosystem.
 
-- Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS, Framer Motion, GSAP
-- Backend: Next.js API routes plus optional custom Socket.io realtime server
-- Database: PostgreSQL with Prisma
-- Auth: JWT sessions, password sign-in, optional Resend email OTP verification, Aadhaar/face verification fields, Google OAuth-ready account linking
-- AI: OpenAI or Gemini provider integration with structured medical JSON responses
-- Storage: Cloudinary signed upload route
-- Realtime: Socket.io slot holds, releases, bookings, and queue broadcasts
-- Maps: Google Maps satellite mode plus Places search with demo fallback
+Designed with modern full-stack architecture using **Next.js 15, Prisma, PostgreSQL, Socket.io, Groq AI, and Vercel deployment infrastructure**.
 
-## Quick Start
+---
+
+# ✨ Key Features
+
+## 👨‍⚕️ Patient Portal
+
+* 🔐 Secure authentication system
+* 🤖 AI-powered symptom analysis
+* 🩺 AI healthcare consultation assistant
+* 📅 Realtime appointment booking
+* 🧾 Medical history timeline
+* 📤 Report upload & verification
+* 🔔 Live notifications & appointment tracking
+* 🗺️ Doctor discovery with Maps integration
+* 💾 Persistent healthcare records
+
+---
+
+## 🧑‍⚕️ Doctor Portal
+
+* 📊 Dedicated doctor dashboard
+* 📋 Patient medical history access
+* 💊 Consultation & prescription management
+* 📅 Appointment scheduling workflow
+* ⚡ Realtime booking visibility
+* 🧠 Patient monitoring architecture
+
+---
+
+## 🛡️ Admin Portal
+
+* 📈 Platform analytics dashboard
+* ✅ User verification workflows
+* 🚨 Fraud/risk monitoring system
+* 👥 Role-based administration
+* 🏥 Healthcare ecosystem management
+
+---
+
+# 🤖 AI Features
+
+* 🧠 AI Medical Consultation Assistant
+* 📊 Symptom & disease analysis
+* ⚠️ Urgency detection system
+* 📄 AI report verification
+* 💡 Patient-context-aware healthcare suggestions
+* 🔍 Structured AI medical JSON responses
+* ⚡ Groq-powered OpenAI-compatible AI integration
+
+---
+
+# ⚡ Realtime Infrastructure
+
+* 📡 Live appointment booking updates
+* 🔄 Slot synchronization
+* 📢 Queue broadcasting
+* ⚙️ Socket.io powered realtime events
+* 👥 Multi-user booking consistency
+
+---
+
+# 🛠️ Tech Stack
+
+## 🎨 Frontend
+
+* Next.js 15
+* React 19
+* TypeScript
+* Tailwind CSS
+* Framer Motion
+* GSAP
+* Lucide Icons
+
+---
+
+## ⚙️ Backend
+
+* Next.js API Routes
+* Node.js
+* Socket.io
+* JWT Authentication
+* RESTful APIs
+
+---
+
+## 🗄️ Database & ORM
+
+* PostgreSQL
+* Prisma ORM
+* Transaction-safe booking engine
+
+---
+
+## 🤖 AI Integration
+
+* Groq API
+* OpenAI-compatible SDK
+* Structured AI responses
+* AI healthcare workflows
+
+---
+
+## ☁️ Cloud & Deployment
+
+* Vercel
+* Neon PostgreSQL
+* Cloudinary-ready uploads
+* Google Maps API integration
+
+---
+
+# 🧱 Architecture Highlights
+
+## 🔒 Secure Authentication
+
+* JWT session architecture
+* Password authentication
+* Optional email OTP support
+* Role-based access control
+* Protected API routes
+
+---
+
+## 📅 Scalable Booking System
+
+* Prisma transaction locking
+* Slot capacity protection
+* Duplicate booking prevention
+* Queue management
+* Realtime synchronization
+
+---
+
+## 🧾 Medical Record Infrastructure
+
+* Persistent medical history
+* Timeline architecture
+* Consultation records
+* Prescription workflows
+* Report verification pipeline
+
+---
+
+# 📂 Main Routes
+
+| Route            | Description            |
+| ---------------- | ---------------------- |
+| `/`              | Landing page           |
+| `/patient`       | Patient dashboard      |
+| `/doctor`        | Doctor dashboard       |
+| `/admin`         | Admin control center   |
+| `/appointments`  | Realtime booking flow  |
+| `/ai-consult`    | AI medical assistant   |
+| `/patient/login` | Patient authentication |
+| `/doctor/login`  | Doctor authentication  |
+| `/admin/login`   | Admin authentication   |
+
+---
+
+# ⚙️ Environment Variables
+
+```env
+DATABASE_URL=
+
+JWT_SECRET=
+
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_MODEL=llama-3.3-70b-versatile
+
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=
+
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+```
+
+---
+
+# 🚀 Local Development
+
+## 📦 Install dependencies
 
 ```bash
 npm install
-copy .env.example .env
-docker compose up -d
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
+```
+
+## ⚙️ Setup environment variables
+
+```bash
+copy .env.example .env.local
+```
+
+## 🗄️ Run Prisma
+
+```bash
+npx prisma generate
+npx prisma migrate dev
+```
+
+## ▶️ Start development server
+
+```bash
 npm run dev:realtime
 ```
 
-Open `http://localhost:3000`.
+Open:
 
-If Docker is not installed, point `DATABASE_URL` at any PostgreSQL database, then run the Prisma commands.
-
-Seeded accounts all use `MediTrack@123` and can log in directly with password for local testing and demos. Configure `RESEND_API_KEY` when you want to use the optional **Send OTP** verification path. For local OTP smoke tests only, set `ALLOW_DEV_OTP_RESPONSE="true"` to echo the stored OTP in the API response:
-
-- `patient@meditrack.ai`
-- `doctor@meditrack.ai`
-- `admin@meditrack.ai`
-
-## Role-Specific Access
-
-- Patient login: `/patient/login`
-- Doctor login: `/doctor/login`
-- Admin login: `/admin/login`
-- Patient registration: `/patient/register`
-- Doctor registration: `/doctor/register`
-- Admin registration: `/admin/register`
-
-Registration requires either Aadhaar last-4 verification or face-scan consent, plus email OTP. Production deployments should connect Aadhaar eKYC, DigiLocker, face liveness, or a compliant identity provider for the biometric fields.
-
-## Realtime Booking
-
-Use `npm run dev:realtime` instead of `npm run dev` when you want Socket.io appointment updates. The server wraps Next.js and broadcasts:
-
-- `slot:hold`
-- `slot:released`
-- `slot:booked`
-- `slot:snapshot`
-
-The database layer protects production bookings with slot capacity checks inside a Prisma transaction.
-
-## AI Features
-
-- `POST /api/ai/analyze`: disease/symptom analysis, urgency, health risk score, doctor recommendations, precautions
-- `POST /api/ai/chat`: ChatGPT-style medical assistant with patient timeline context
-- `POST /api/ai/verify-report`: OCR/authenticity-style verification response with suspicious upload flags
-
-Set `OPENAI_API_KEY` or `GEMINI_API_KEY` before using AI routes. If no provider key is configured, AI routes return a clear `503` instead of generating mocked medical guidance.
-
-## Production Environment
-
-Set these values in `.env`:
-
-```bash
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/meditrack?schema=public"
-JWT_SECRET="replace-with-a-strong-32-byte-secret"
-OPENAI_API_KEY="..."
-OPENAI_MODEL="gpt-5.2"
-GEMINI_API_KEY="..."
-GEMINI_MODEL="gemini-1.5-flash"
-RESEND_API_KEY="..."
-RESEND_FROM_EMAIL="MediTrack <onboarding@resend.dev>"
-ALLOW_DEV_OTP_RESPONSE="false"
-NEXT_PUBLIC_APP_URL="https://your-domain.com"
-NEXT_PUBLIC_SOCKET_URL="https://your-domain.com"
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="..."
-CLOUDINARY_CLOUD_NAME="..."
-CLOUDINARY_API_KEY="..."
-CLOUDINARY_API_SECRET="..."
-GOOGLE_CLIENT_ID="..."
-GOOGLE_CLIENT_SECRET="..."
-GOOGLE_OAUTH_REDIRECT_URI="https://your-domain.com/api/auth/oauth/google/callback"
-SMTP_HOST="..."
-SMTP_USER="..."
-SMTP_PASS="..."
-SMS_PROVIDER_API_KEY="..."
+```txt
+http://localhost:3000
 ```
 
-## Main Routes
+---
 
-- `/`: cinematic landing page
-- `/patient`: patient dashboard with AI consultation, disease analysis, timeline, reports, booking, doctors, maps, SOS
-- `/doctor`: doctor dashboard with patient history, schedule, consultation form
-- `/admin`: admin command center for verification, fraud monitoring, analytics
-- `/appointments`: standalone real-time booking flow
-- `/ai-consult`: AI assistant, symptom analysis, report verification, doctor matching
-- `/login` and `/register`: role selection pages
+# 🌍 Production Deployment
 
-## Security Notes
+🔗 Live Application:
+https://meditrack-six-psi.vercel.app/
 
-This starter includes the architecture and code paths for HIPAA-like safeguards, but real compliance requires legal, operational, infrastructure, and audit controls beyond code. Before production PHI use, add encryption-at-rest key management, audit logs, consent policies, access reviews, incident response, DPA/BAA workflows, and clinical safety review.
+---
+
+# 🧠 Engineering Highlights
+
+✅ Full-stack production architecture
+✅ AI-integrated healthcare workflows
+✅ Realtime booking engine
+✅ Persistent PostgreSQL-backed dashboards
+✅ Modern responsive UI/UX
+✅ Transaction-safe backend infrastructure
+✅ Scalable API-driven design
+✅ Cloud deployment ready
+
+---
+
+# 🔮 Future Improvements
+
+* 📹 Video consultations
+* 🪪 Aadhaar eKYC integration
+* 🧠 Face liveness verification
+* 📲 Push notifications
+* 📊 Advanced analytics
+* 🏥 Multi-hospital support
+* 🔐 HIPAA-grade audit logging
+
+---
+
+# 👨‍💻 Developer
+
+### Vyas Mittal
+
+📧 Email: [vyas.mittal.12@gmail.com](mailto:vyas.mittal.12@gmail.com)
+📱 Phone: +91 9027222011
+
+---
+
+# ⚠️ Disclaimer
+
+This platform is developed for educational and portfolio purposes. AI-generated medical guidance should not be considered a replacement for licensed medical professionals or emergency healthcare services.
