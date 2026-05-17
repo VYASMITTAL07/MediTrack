@@ -1,6 +1,7 @@
 # 🏥 MediTrack — AI Powered Healthcare Management Platform
 
 🚀 **Live Demo:** https://meditrack-six-psi.vercel.app/
+⚡ Demo OTP for testing: 456321
 
 MediTrack is a production-style full-stack healthcare SaaS platform built for patients, doctors, and healthcare administrators. The platform combines 🤖 AI-powered healthcare assistance, 📋 medical record management, ⚡ realtime appointment booking, 🧠 intelligent report verification, and 🔐 secure role-based authentication into one scalable ecosystem.
 
