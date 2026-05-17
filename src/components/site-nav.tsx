@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { HeartPulse, Menu, UserPlus } from "lucide-react";
+import { HeartPulse, LogOut, Menu, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { portalNav } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,19 @@ import { Button } from "@/components/ui/button";
 export function SiteNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const showLogout =
+    ["/patient", "/doctor", "/admin"].some(
+      (prefix) =>
+        pathname === prefix ||
+        (pathname.startsWith(`${prefix}/`) &&
+          !pathname.startsWith(`${prefix}/login`) &&
+          !pathname.startsWith(`${prefix}/register`))
+    );
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => null);
+    window.location.href = "/login";
+  }
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 px-4 backdrop-blur">
@@ -53,12 +66,19 @@ export function SiteNav() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button asChild className="hidden md:inline-flex">
-            <Link href="/register">
-              <UserPlus className="mr-2 size-4" />
-              Create Account
-            </Link>
-          </Button>
+          {showLogout ? (
+            <Button className="hidden md:inline-flex" onClick={logout}>
+              <LogOut className="mr-2 size-4" />
+              Logout
+            </Button>
+          ) : (
+            <Button asChild className="hidden md:inline-flex">
+              <Link href="/register">
+                <UserPlus className="mr-2 size-4" />
+                Create Account
+              </Link>
+            </Button>
+          )}
           <Button
             size="icon"
             variant="ghost"
@@ -86,6 +106,14 @@ export function SiteNav() {
               {item.label}
             </Link>
           ))}
+          {showLogout && (
+            <button
+              onClick={logout}
+              className="rounded-2xl px-4 py-3 text-left text-sm font-medium hover:bg-foreground/10"
+            >
+              Logout
+            </button>
+          )}
         </motion.div>
       )}
     </header>

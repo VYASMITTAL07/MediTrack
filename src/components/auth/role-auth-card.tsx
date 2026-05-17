@@ -26,7 +26,7 @@ const roleMeta: Record<
   {
     label: string;
     icon: typeof UserRound;
-    demoEmail: string;
+    defaultEmail: string;
     destination: string;
     accent: string;
     registerCopy: string;
@@ -35,7 +35,7 @@ const roleMeta: Record<
   PATIENT: {
     label: "Patient",
     icon: UserRound,
-    demoEmail: "patient@meditrack.ai",
+    defaultEmail: "patient@meditrack.ai",
     destination: "/patient",
     accent: "text-emerald-300",
     registerCopy: "Create a verified patient vault with Aadhaar eKYC or face scan."
@@ -43,7 +43,7 @@ const roleMeta: Record<
   DOCTOR: {
     label: "Doctor",
     icon: Stethoscope,
-    demoEmail: "doctor@meditrack.ai",
+    defaultEmail: "doctor@meditrack.ai",
     destination: "/doctor",
     accent: "text-cyan-300",
     registerCopy: "Create a doctor account with license review and biometric verification."
@@ -51,7 +51,7 @@ const roleMeta: Record<
   ADMIN: {
     label: "Admin",
     icon: Building2,
-    demoEmail: "admin@meditrack.ai",
+    defaultEmail: "admin@meditrack.ai",
     destination: "/admin",
     accent: "text-amber-300",
     registerCopy: "Create an admin command account with elevated identity checks."
@@ -61,21 +61,25 @@ const roleMeta: Record<
 export function RoleLoginCard({ role }: { role: Role }) {
   const meta = roleMeta[role];
   const Icon = meta.icon;
-  const [email, setEmail] = useState(meta.demoEmail);
+  const [email, setEmail] = useState(meta.defaultEmail);
   const [pin, setPin] = useState("");
   const [isPending, startTransition] = useTransition();
-  const [pinStatus, setPinStatus] = useState("Click Send PIN to generate a fresh sign-in code.");
+  const [pinStatus, setPinStatus] = useState("Email OTP is optional for local testing and demos.");
 
   function requestPin() {
     startTransition(async () => {
       const response = await fetch("/api/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, purpose: "SIGN_IN" })
+        body: JSON.stringify({ email, purpose: "SIGN_IN", role })
       }).catch(() => null);
       const data = response ? await response.json().catch(() => null) : null;
-      setPin(data?.devPin ?? data?.devOtp ?? "");
-      setPinStatus(data?.message ?? "PIN generated for sign in");
+      if (!response?.ok) {
+        setPinStatus(data?.error ?? "Unable to send email OTP right now.");
+        return;
+      }
+      setPin(data?.devOtp ?? "");
+      setPinStatus(data?.message ?? "Email OTP sent for sign in.");
     });
   }
 
@@ -83,7 +87,7 @@ export function RoleLoginCard({ role }: { role: Role }) {
     <AuthFrame
       eyebrow={`${meta.label} sign in`}
       title={`${meta.label} portal login`}
-      description="Password plus a fresh PIN is required before opening a role-specific dashboard."
+      description="Use your password to open a role-specific dashboard. Email OTP remains available when needed."
       icon={<Icon className={cn("size-7", meta.accent)} />}
     >
       <form action="/api/auth/login" method="post" className="grid gap-4">
@@ -106,13 +110,13 @@ export function RoleLoginCard({ role }: { role: Role }) {
             name="pin"
             value={pin}
             onChange={(event) => setPin(event.target.value)}
-            placeholder="6-digit PIN"
+            placeholder="Optional email OTP"
             inputMode="numeric"
             className="rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
           />
           <Button type="button" variant="secondary" className="rounded-md" onClick={requestPin}>
             {isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
-            Send PIN
+            Send OTP
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">{pinStatus}</p>
@@ -138,7 +142,7 @@ export function RoleRegisterCard({ role }: { role: Role }) {
   const [verificationMethod, setVerificationMethod] = useState<"AADHAAR" | "FACE">("AADHAAR");
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
-  const [pinStatus, setPinStatus] = useState("Enter email, then request an account PIN.");
+  const [pinStatus, setPinStatus] = useState("Enter email, then request an account OTP.");
   const [isPending, startTransition] = useTransition();
 
   const verificationHelp = useMemo(() => {
@@ -153,7 +157,7 @@ export function RoleRegisterCard({ role }: { role: Role }) {
 
   function requestAccountPin() {
     if (!email.trim()) {
-      setPinStatus("Email is required before sending a PIN.");
+      setPinStatus("Email is required before sending an OTP.");
       return;
     }
 
@@ -161,11 +165,15 @@ export function RoleRegisterCard({ role }: { role: Role }) {
       const response = await fetch("/api/auth/request-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, purpose: "ACCOUNT_VERIFICATION" })
+        body: JSON.stringify({ email, purpose: "ACCOUNT_VERIFICATION", role })
       }).catch(() => null);
       const data = response ? await response.json().catch(() => null) : null;
-      setPin(data?.devPin ?? data?.devOtp ?? "");
-      setPinStatus(data?.message ?? "Account PIN generated.");
+      if (!response?.ok) {
+        setPinStatus(data?.error ?? "Unable to send account OTP right now.");
+        return;
+      }
+      setPin(data?.devOtp ?? "");
+      setPinStatus(data?.message ?? "Account OTP sent.");
     });
   }
 
@@ -188,7 +196,7 @@ export function RoleRegisterCard({ role }: { role: Role }) {
           />
           <input
             name="phone"
-            placeholder="Phone for PIN"
+            placeholder="Phone"
             className="rounded-md border border-border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
@@ -221,7 +229,7 @@ export function RoleRegisterCard({ role }: { role: Role }) {
           <VerificationButton
             active={verificationMethod === "AADHAAR"}
             title="Aadhaar eKYC"
-            copy="Enter last 4 digits, then PIN"
+            copy="Enter last 4 digits, then OTP"
             icon={<Fingerprint className="size-5" />}
             onClick={() => setVerificationMethod("AADHAAR")}
           />
@@ -251,7 +259,7 @@ export function RoleRegisterCard({ role }: { role: Role }) {
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <input
             name="pin"
-            placeholder="Account creation PIN"
+            placeholder="Account creation OTP"
             value={pin}
             onChange={(event) => setPin(event.target.value)}
             inputMode="numeric"
@@ -259,12 +267,11 @@ export function RoleRegisterCard({ role }: { role: Role }) {
           />
           <Button type="button" variant="secondary" className="rounded-md" onClick={requestAccountPin}>
             {isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Send className="mr-2 size-4" />}
-            Send PIN
+            Send OTP
           </Button>
         </div>
         <p className="rounded-md bg-primary/10 p-3 text-xs leading-5 text-muted-foreground">
-          {verificationHelp} In development this button shows the generated PIN; production can replace
-          this with Aadhaar eKYC, DigiLocker, face liveness, or provider APIs.
+          {verificationHelp} The email OTP is stored with expiry before this account can be created.
         </p>
         <p className="text-xs text-muted-foreground">{pinStatus}</p>
         <Button className="rounded-md">
@@ -309,7 +316,7 @@ export function RoleGateway({ mode }: { mode: "login" | "register" }) {
                   <h2 className="mt-6 text-2xl font-bold">{meta.label}</h2>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     {mode === "login"
-                      ? `Login with password plus PIN to open the ${meta.label.toLowerCase()} portal.`
+                      ? `Login with password to open the ${meta.label.toLowerCase()} portal.`
                       : meta.registerCopy}
                   </p>
                 </Card>

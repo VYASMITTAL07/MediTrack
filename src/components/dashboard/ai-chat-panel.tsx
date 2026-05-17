@@ -6,6 +6,7 @@ import { symptomSuggestions } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FeedbackToast, type FeedbackToastState } from "@/components/ui/feedback-toast";
 
 type Message = {
   role: "user" | "assistant";
@@ -24,6 +25,12 @@ export function AIChatPanel() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<FeedbackToastState>(null);
+
+  function showFeedback(nextFeedback: FeedbackToastState) {
+    setFeedback(nextFeedback);
+    window.setTimeout(() => setFeedback(null), 3600);
+  }
 
   function sendMessage(message = input) {
     const clean = message.trim();
@@ -33,27 +40,52 @@ export function AIChatPanel() {
     setMessages((current) => [...current, { role: "user", content: clean }]);
 
     startTransition(async () => {
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: clean, patientId: "demo-patient" })
-      }).catch(() => null);
+      try {
+        const response = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: clean })
+        });
 
-      const data = response ? await response.json().catch(() => null) : null;
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content:
-            data?.reply ??
-            "Based on your record context, this looks non-emergency, but booking a clinician review is wise if symptoms persist or intensify."
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error ?? "AI consultation is unavailable.");
         }
-      ]);
+
+        const details = [
+          data?.reply,
+          data?.urgencyLevel ? `Urgency: ${data.urgencyLevel}` : null,
+          data?.specialistRecommendation ? `Specialist: ${data.specialistRecommendation}` : null,
+          Array.isArray(data?.precautions) && data.precautions.length > 0
+            ? `Precautions: ${data.precautions.slice(0, 3).join("; ")}`
+            : null,
+          data?.disclaimer
+        ].filter(Boolean);
+
+        setMessages((current) => [
+          ...current,
+          {
+            role: "assistant",
+            content: details.join("\n\n")
+          }
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unable to complete AI consultation.";
+        showFeedback({ type: "error", message });
+        setMessages((current) => [
+          ...current,
+          {
+            role: "assistant",
+            content: message
+          }
+        ]);
+      }
     });
   }
 
   return (
     <Card className="flex h-full flex-col">
+      <FeedbackToast feedback={feedback} />
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">

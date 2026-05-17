@@ -5,7 +5,7 @@ const layers = [
   {
     icon: LockKeyhole,
     title: "Security",
-    detail: "JWT sessions, PIN verification, MFA-ready flows, RBAC guards, PHI encryption strategy."
+    detail: "JWT sessions, email OTP verification, MFA-ready flows, RBAC guards, PHI encryption strategy."
   },
   {
     icon: ServerCog,
@@ -20,7 +20,7 @@ const layers = [
   {
     icon: ScanSearch,
     title: "Verification",
-    detail: "Report checks, symptom review, and local fallback responses for demo readiness."
+    detail: "Report checks and symptom review use configured AI provider APIs with structured outputs."
   }
 ];
 

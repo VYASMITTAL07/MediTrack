@@ -2,11 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { Brain, Gauge, Search, Stethoscope } from "lucide-react";
-import { doctors as fallbackDoctors } from "@/lib/data";
 import { healthRiskColor } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FeedbackToast, type FeedbackToastState } from "@/components/ui/feedback-toast";
+
+type DoctorSummary = {
+  id: string;
+  name: string;
+  specialty: string;
+};
 
 type Analysis = {
   severity: string;
@@ -14,7 +20,7 @@ type Analysis = {
   healthRiskScore: number;
   possibleDiseases: string[];
   recommendedSpecializations: string[];
-  recommendedDoctors?: typeof fallbackDoctors;
+  recommendedDoctors?: DoctorSummary[];
   nearbyClinics: string[];
   precautions: string[];
   ratingSystem: {
@@ -29,25 +35,42 @@ export function DiseaseAnalysis() {
   const [symptoms, setSymptoms] = useState("Fever with cough for 3 days");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<FeedbackToastState>(null);
+
+  function showFeedback(nextFeedback: FeedbackToastState) {
+    setFeedback(nextFeedback);
+    window.setTimeout(() => setFeedback(null), 3600);
+  }
 
   function analyze() {
     startTransition(async () => {
-      const response = await fetch("/api/ai/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symptoms,
-          location: "Mumbai",
-          knownConditions: ["Penicillin allergy"]
-        })
-      });
-      const data = await response.json();
-      setAnalysis(data);
+      try {
+        const response = await fetch("/api/ai/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            symptoms,
+            location: "Mumbai",
+            knownConditions: ["Penicillin allergy"]
+          })
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Unable to analyze symptoms.");
+        }
+        setAnalysis(data);
+      } catch (error) {
+        showFeedback({
+          type: "error",
+          message: error instanceof Error ? error.message : "Unable to analyze symptoms."
+        });
+      }
     });
   }
 
   return (
     <Card>
+      <FeedbackToast feedback={feedback} />
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">
@@ -112,7 +135,7 @@ export function DiseaseAnalysis() {
               Recommended doctors
             </p>
             <div className="grid gap-2">
-              {(analysis.recommendedDoctors ?? fallbackDoctors).slice(0, 3).map((doctor) => (
+              {(analysis.recommendedDoctors ?? []).slice(0, 3).map((doctor) => (
                 <div
                   key={doctor.id}
                   className="flex items-center justify-between rounded-md border border-border bg-background px-4 py-3"
@@ -121,6 +144,11 @@ export function DiseaseAnalysis() {
                   <Badge>{doctor.specialty}</Badge>
                 </div>
               ))}
+              {(analysis.recommendedDoctors ?? []).length === 0 && (
+                <p className="rounded-md border border-border bg-background px-4 py-3 text-sm text-muted-foreground">
+                  No matching verified doctors found yet.
+                </p>
+              )}
             </div>
           </div>
 

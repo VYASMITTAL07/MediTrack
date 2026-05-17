@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email";
 
 export type NotificationPayload = {
   userId?: string;
@@ -23,22 +24,29 @@ export async function sendNotification(payload: NotificationPayload) {
   }
 
   if (payload.channel === "EMAIL") {
-    return {
-      delivered: Boolean(process.env.SMTP_HOST),
-      provider: process.env.SMTP_HOST ? "smtp" : "demo-email",
-      message: process.env.SMTP_HOST
-        ? "Queued through configured SMTP provider."
-        : "SMTP not configured. Demo notification recorded only."
-    };
+    if (!payload.to) {
+      return {
+        delivered: false,
+        provider: "resend",
+        message: "Email recipient is required."
+      };
+    }
+
+    return sendEmail({
+      to: payload.to,
+      subject: payload.title,
+      text: payload.body,
+      html: `<p>${payload.body}</p>`
+    });
   }
 
   if (payload.channel === "SMS") {
     return {
       delivered: Boolean(process.env.SMS_PROVIDER_API_KEY),
-      provider: process.env.SMS_PROVIDER_API_KEY ? "sms-provider" : "demo-sms",
+      provider: process.env.SMS_PROVIDER_API_KEY ? "sms-provider" : "not-configured",
       message: process.env.SMS_PROVIDER_API_KEY
         ? "Queued through configured SMS provider."
-        : "SMS provider not configured. Demo notification recorded only."
+        : "SMS provider not configured. In-app notification recorded only."
     };
   }
 

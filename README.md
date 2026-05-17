@@ -1,14 +1,14 @@
 # MediTrack Medical Record Management System
 
-A production-ready full-stack starter for an AI-powered healthcare SaaS platform with separate patient, doctor, and admin portals, role-specific login/register pages, PIN sign-in, Aadhaar/face verification UI, real-time appointment booking, AI symptom analysis, medical history timelines, report verification, PostgreSQL models, Cloudinary-ready uploads, notifications, and Google Maps-ready doctor discovery.
+A production-ready full-stack starter for an AI-powered healthcare SaaS platform with separate patient, doctor, and admin portals, role-specific login/register pages, password sign-in with optional email OTP verification, Aadhaar/face verification UI, real-time appointment booking, AI symptom analysis, medical history timelines, report verification, PostgreSQL models, Cloudinary-ready uploads, notifications, and Google Maps-ready doctor discovery.
 
 ## Stack
 
 - Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS, Framer Motion, GSAP
 - Backend: Next.js API routes plus optional custom Socket.io realtime server
 - Database: PostgreSQL with Prisma
-- Auth: JWT sessions, PIN sign-in, Aadhaar/face verification fields, Google OAuth-ready account linking
-- AI: OpenAI SDK with safe local fallback responses when `OPENAI_API_KEY` is absent
+- Auth: JWT sessions, password sign-in, optional Resend email OTP verification, Aadhaar/face verification fields, Google OAuth-ready account linking
+- AI: OpenAI or Gemini provider integration with structured medical JSON responses
 - Storage: Cloudinary signed upload route
 - Realtime: Socket.io slot holds, releases, bookings, and queue broadcasts
 - Maps: Google Maps satellite mode plus Places search with demo fallback
@@ -29,7 +29,7 @@ Open `http://localhost:3000`.
 
 If Docker is not installed, point `DATABASE_URL` at any PostgreSQL database, then run the Prisma commands.
 
-Seeded accounts all use `MediTrack@123`. Use **Send PIN** on the login screen to generate a fresh development PIN:
+Seeded accounts all use `MediTrack@123` and can log in directly with password for local testing and demos. Configure `RESEND_API_KEY` when you want to use the optional **Send OTP** verification path. For local OTP smoke tests only, set `ALLOW_DEV_OTP_RESPONSE="true"` to echo the stored OTP in the API response:
 
 - `patient@meditrack.ai`
 - `doctor@meditrack.ai`
@@ -44,7 +44,7 @@ Seeded accounts all use `MediTrack@123`. Use **Send PIN** on the login screen to
 - Doctor registration: `/doctor/register`
 - Admin registration: `/admin/register`
 
-Registration requires either Aadhaar last-4 verification or face-scan consent, plus PIN. Production deployments should replace the development PIN and mock biometric fields with Aadhaar eKYC, DigiLocker, face liveness, or a compliant identity provider.
+Registration requires either Aadhaar last-4 verification or face-scan consent, plus email OTP. Production deployments should connect Aadhaar eKYC, DigiLocker, face liveness, or a compliant identity provider for the biometric fields.
 
 ## Realtime Booking
 
@@ -63,7 +63,7 @@ The database layer protects production bookings with slot capacity checks inside
 - `POST /api/ai/chat`: ChatGPT-style medical assistant with patient timeline context
 - `POST /api/ai/verify-report`: OCR/authenticity-style verification response with suspicious upload flags
 
-If `OPENAI_API_KEY` is empty, routes return deterministic local simulator responses so the product remains demo-ready.
+Set `OPENAI_API_KEY` or `GEMINI_API_KEY` before using AI routes. If no provider key is configured, AI routes return a clear `503` instead of generating mocked medical guidance.
 
 ## Production Environment
 
@@ -74,6 +74,11 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/meditrack?schema=pub
 JWT_SECRET="replace-with-a-strong-32-byte-secret"
 OPENAI_API_KEY="..."
 OPENAI_MODEL="gpt-5.2"
+GEMINI_API_KEY="..."
+GEMINI_MODEL="gemini-1.5-flash"
+RESEND_API_KEY="..."
+RESEND_FROM_EMAIL="MediTrack <onboarding@resend.dev>"
+ALLOW_DEV_OTP_RESPONSE="false"
 NEXT_PUBLIC_APP_URL="https://your-domain.com"
 NEXT_PUBLIC_SOCKET_URL="https://your-domain.com"
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="..."

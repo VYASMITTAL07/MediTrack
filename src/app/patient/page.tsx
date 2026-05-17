@@ -39,7 +39,7 @@ export default function PatientPortal() {
   const [dashboard, setDashboard] = useState<PatientDashboardData | null>(null);
 
   const loadDashboard = useCallback(async () => {
-    const response = await fetch("/api/dashboard/patient");
+    const response = await fetch("/api/dashboard/patient", { cache: "no-store" });
     if (!response.ok) return;
     const data = (await response.json()) as PatientDashboardData;
     setDashboard(data);
@@ -47,8 +47,17 @@ export default function PatientPortal() {
 
   useEffect(() => {
     loadDashboard();
+    const interval = window.setInterval(loadDashboard, 30000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadDashboard();
+    };
     window.addEventListener("meditrack:data-refresh", loadDashboard);
-    return () => window.removeEventListener("meditrack:data-refresh", loadDashboard);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("meditrack:data-refresh", loadDashboard);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [loadDashboard]);
 
   const stats = dashboard?.stats;
@@ -101,7 +110,7 @@ export default function PatientPortal() {
           icon={ShieldCheck}
           label="Identity"
           value="MFA ready"
-          detail="PIN, email, Aadhaar/passport, and face verification architecture"
+          detail="Email OTP, Aadhaar/passport, and face verification architecture"
         />
         <StatCard
           icon={Activity}

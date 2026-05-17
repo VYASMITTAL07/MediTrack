@@ -1,6 +1,7 @@
 import { SignJWT } from "jose/jwt/sign";
 import { jwtVerify } from "jose/jwt/verify";
 import type { JWTPayload } from "jose";
+import type { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const fallbackSecret = "development-secret-change-before-production-32bytes";
@@ -44,6 +45,26 @@ export async function getSessionFromRequest(request: NextRequest) {
   const bearer = request.headers.get("authorization")?.replace("Bearer ", "");
   const cookieToken = request.cookies.get("meditrack_session")?.value;
   return verifySession(bearer ?? cookieToken);
+}
+
+export function setSessionCookie(response: NextResponse, token: string) {
+  response.cookies.set("meditrack_session", token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7
+  });
+}
+
+export function clearSessionCookie(response: NextResponse) {
+  response.cookies.set("meditrack_session", "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0
+  });
 }
 
 export function isStrongPassword(password: string) {

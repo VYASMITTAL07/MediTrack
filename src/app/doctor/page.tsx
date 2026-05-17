@@ -24,7 +24,7 @@ export default function DoctorPortal() {
   const [dashboard, setDashboard] = useState<DoctorDashboardData | null>(null);
 
   const loadDashboard = useCallback(async () => {
-    const response = await fetch("/api/dashboard/doctor");
+    const response = await fetch("/api/dashboard/doctor", { cache: "no-store" });
     if (!response.ok) return;
     const data = (await response.json()) as DoctorDashboardData;
     setDashboard(data);
@@ -32,8 +32,17 @@ export default function DoctorPortal() {
 
   useEffect(() => {
     loadDashboard();
+    const interval = window.setInterval(loadDashboard, 30000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadDashboard();
+    };
     window.addEventListener("meditrack:data-refresh", loadDashboard);
-    return () => window.removeEventListener("meditrack:data-refresh", loadDashboard);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("meditrack:data-refresh", loadDashboard);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [loadDashboard]);
 
   const stats = dashboard?.stats;

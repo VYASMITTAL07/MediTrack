@@ -3,7 +3,9 @@ import { VerificationStatus } from "@prisma/client";
 import { z } from "zod";
 import { getSessionFromRequest } from "@/lib/auth";
 import { formatReport } from "@/lib/healthcare";
+import { MedicalAIResponseError, MedicalAIUnavailableError } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
+import { verifyReportWithAI } from "@/lib/report-ai";
 import { findUserForSession } from "@/lib/session";
 
 const reportSchema = z.object({
@@ -11,12 +13,10 @@ const reportSchema = z.object({
   fileName: z.string().min(1).optional(),
   fileUrl: z.string().optional(),
   fileType: z.string().min(1).default("application/octet-stream"),
+  extractedText: z.string().optional(),
   ocrText: z.string().optional(),
   hospitalName: z.string().optional(),
-  labName: z.string().optional(),
-  verificationStatus: z.enum(["PENDING", "VERIFIED", "REJECTED", "FLAGGED"]).default("PENDING"),
-  aiConfidence: z.number().min(0).max(1).default(0),
-  flags: z.array(z.string()).default([])
+  labName: z.string().optional()
 });
 
 export async function GET(request: NextRequest) {
@@ -54,29 +54,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid report payload" }, { status: 400 });
   }
 
-  const report = await prisma.report.create({
-    data: {
-      patientId: user.patientProfile.id,
+  try {
+    const aiResult = await verifyReportWithAI({
       title: parsed.data.title,
-      fileUrl: parsed.data.fileUrl ?? `local://${parsed.data.fileName ?? parsed.data.title}`,
+      fileName: parsed.data.fileName ?? parsed.data.title,
       fileType: parsed.data.fileType,
-      ocrText: parsed.data.ocrText,
-      hospitalName: parsed.data.hospitalName,
-      labName: parsed.data.labName,
-      verificationStatus: parsed.data.verificationStatus as VerificationStatus,
-      aiConfidence: parsed.data.aiConfidence,
-      flags: parsed.data.flags
-    }
-  });
+      extractedText: parsed.data.extractedText ?? parsed.data.ocrText,
+      hospitalName: parsed.data.hospitalName
+    });
 
-  await prisma.notification.create({
-    data: {
-      userId: user.id,
-      channel: "IN_APP",
-      title: "Report uploaded",
-      body: `${report.title} was saved with ${report.verificationStatus.toLowerCase()} verification status.`
-    }
-  });
+    const report = await prisma.report.create({
+      data: {
+        patientId: user.patientProfile.id,
+        title: parsed.data.title,
+        fileUrl: parsed.data.fileUrl ?? `local://${parsed.data.fileName ?? parsed.data.title}`,
+        fileType: parsed.data.fileType,
+        ocrText: [aiResult.verification.extractedText, `AI summary: ${aiResult.verification.summary}`]
+          .filter(Boolean)
+          .join("\n\n"),
+        hospitalName: parsed.data.hospitalName,
+        labName: parsed.data.labName,
+        verificationStatus: aiResult.verification.status as VerificationStatus,
+        aiConfidence: aiResult.verification.confidence,
+        flags: aiResult.verification.flags
+      }
+    });
 
-  return NextResponse.json({ report: formatReport(report), source: "database" });
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        channel: "IN_APP",
+        title: "Report uploaded",
+        body: `${report.title} was saved with ${report.verificationStatus.toLowerCase()} verification status.`
+      }
+    });
+
+    return NextResponse.json({
+      report: formatReport(report),
+      verification: aiResult.verification,
+      model: aiResult.model,
+      provider: aiResult.provider,
+      source: "database"
+    });
+  } catch (error) {
+    if (error instanceof MedicalAIUnavailableError || error instanceof MedicalAIResponseError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "AI response did not match the required report structure." }, { status: 502 });
+    }
+
+    return NextResponse.json({ error: "Unable to verify and save report." }, { status: 500 });
+  }
 }

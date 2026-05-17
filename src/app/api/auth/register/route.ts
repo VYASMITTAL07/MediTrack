@@ -1,11 +1,11 @@
 import bcrypt from "bcryptjs";
 import { NextResponse, type NextRequest } from "next/server";
-import { Role, VerificationStatus } from "@prisma/client";
+import { Prisma, Role, VerificationStatus } from "@prisma/client";
 import { z } from "zod";
-import { signSession, isStrongPassword } from "@/lib/auth";
+import { isStrongPassword, setSessionCookie, signSession } from "@/lib/auth";
+import { verifyAndConsumeOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { readPayload, requestOrigin } from "@/lib/request";
-import { verifyRememberedPin } from "@/lib/pin";
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const pin = parsed.data.pin ?? parsed.data.otp ?? "";
+  const otpCode = parsed.data.otp ?? parsed.data.pin ?? "";
 
-  if (!/^\d{6}$/.test(pin) || !verifyRememberedPin(email, "ACCOUNT_VERIFICATION", pin)) {
-    return NextResponse.json({ error: "Invalid or expired account creation PIN" }, { status: 401 });
+  if (!/^\d{6}$/.test(otpCode)) {
+    return NextResponse.json({ error: "Valid 6-digit email OTP is required" }, { status: 400 });
   }
 
   if (parsed.data.identityMethod === "AADHAAR" && !parsed.data.aadhaarLast4) {
@@ -51,42 +51,66 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Face scan consent is required" }, { status: 400 });
   }
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-  const otpHash = await bcrypt.hash(pin, 10);
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    include: {
+      patientProfile: true,
+      doctorProfile: true
+    }
+  });
 
-  const user = await prisma
-    .$transaction(async (tx) => {
-      const created = await tx.user.create({
+  if (!existing) {
+    return NextResponse.json({ error: "Request an email OTP before creating the account." }, { status: 401 });
+  }
+
+  if (existing.role !== parsed.data.role) {
+    return NextResponse.json({ error: "Request a fresh email OTP for this portal role." }, { status: 403 });
+  }
+
+  if (existing.emailVerifiedAt || existing.patientProfile || existing.doctorProfile) {
+    return NextResponse.json({ error: "An account already exists for this email." }, { status: 409 });
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  try {
+    const user = await prisma.$transaction(async (tx) => {
+      const otpValid = await verifyAndConsumeOtp({
+        tx,
+        userId: existing.id,
+        purpose: "ACCOUNT_VERIFICATION",
+        code: otpCode
+      });
+
+      if (!otpValid) {
+        throw new Error("INVALID_OTP");
+      }
+
+      const updated = await tx.user.update({
+        where: { id: existing.id },
         data: {
           name: parsed.data.name,
-          email,
           phone: parsed.data.phone || null,
           passwordHash,
           role: parsed.data.role as Role,
           verificationStatus:
             parsed.data.role === "ADMIN" ? VerificationStatus.PENDING : VerificationStatus.VERIFIED,
-          otps: {
-            create: {
-              codeHash: otpHash,
-              purpose: "ACCOUNT_VERIFICATION",
-              expiresAt: new Date(Date.now() + 10 * 60 * 1000)
-            }
-          }
+          emailVerifiedAt: new Date()
         }
       });
 
       if (parsed.data.role === "PATIENT") {
         await tx.patientProfile.create({
           data: {
-            userId: created.id,
+            userId: updated.id,
             allergies: [],
             aadhaarHash:
               parsed.data.identityMethod === "AADHAAR"
                 ? `aadhaar_last4_${parsed.data.aadhaarLast4}`
                 : undefined,
             faceVectorHash:
-              parsed.data.identityMethod === "FACE" ? `face_scan_${created.id}` : undefined,
-            qrCode: `MEDITRACK-${created.id.slice(-8).toUpperCase()}`
+              parsed.data.identityMethod === "FACE" ? `face_scan_${updated.id}` : undefined,
+            qrCode: `MEDITRACK-${updated.id.slice(-8).toUpperCase()}`
           }
         });
       }
@@ -94,8 +118,8 @@ export async function POST(request: NextRequest) {
       if (parsed.data.role === "DOCTOR") {
         await tx.doctorProfile.create({
           data: {
-            userId: created.id,
-            licenseNumber: parsed.data.licenseNumber || `PENDING-${created.id}`,
+            userId: updated.id,
+            licenseNumber: parsed.data.licenseNumber || `PENDING-${updated.id}`,
             specialization: "General Medicine",
             experienceYears: 0,
             consultationFee: 0,
@@ -107,54 +131,46 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return created;
-    })
-    .catch(() => ({
-      id: `demo-${parsed.data.role.toLowerCase()}-${Date.now()}`,
-      email,
-      role: parsed.data.role as Role,
-      verificationStatus:
-        parsed.data.role === "ADMIN" ? VerificationStatus.PENDING : VerificationStatus.VERIFIED
-    }));
-
-  const token = await signSession({
-    userId: user.id,
-    email: user.email,
-    role: user.role
-  });
-
-  const destination =
-    user.role === "DOCTOR" ? "/doctor" : user.role === "ADMIN" ? "/admin" : "/patient";
-
-  if (source === "form") {
-    const response = NextResponse.redirect(new URL(`${destination}?registered=1`, requestOrigin(request)), {
-      status: 303
+      return updated;
     });
-    response.cookies.set("meditrack_session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7
-    });
-    response.cookies.set("meditrack_dev_pin", pin, {
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 10
-    });
-    return response;
-  }
 
-  return NextResponse.json({
-    user: {
-      id: user.id,
+    const token = await signSession({
+      userId: user.id,
       email: user.email,
-      role: user.role,
-      verificationStatus: user.verificationStatus
-    },
-    token,
-    devPin: process.env.NODE_ENV === "production" ? undefined : pin,
-    devOtp: process.env.NODE_ENV === "production" ? undefined : pin
-  });
+      role: user.role
+    });
+
+    const destination =
+      user.role === "DOCTOR" ? "/doctor" : user.role === "ADMIN" ? "/admin" : "/patient";
+
+    if (source === "form") {
+      const response = NextResponse.redirect(new URL(`${destination}?registered=1`, requestOrigin(request)), {
+        status: 303
+      });
+      setSessionCookie(response, token);
+      return response;
+    }
+
+    const response = NextResponse.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        verificationStatus: user.verificationStatus
+      },
+      token
+    });
+    setSessionCookie(response, token);
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.message === "INVALID_OTP") {
+      return NextResponse.json({ error: "Invalid or expired email OTP" }, { status: 401 });
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Email, phone, license, or QR code already exists." }, { status: 409 });
+    }
+
+    return NextResponse.json({ error: "Unable to create account." }, { status: 500 });
+  }
 }

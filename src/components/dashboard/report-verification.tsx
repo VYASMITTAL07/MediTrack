@@ -11,8 +11,18 @@ type VerificationResult = {
   status: string;
   confidence: number;
   extractedText: string;
+  summary?: string;
   flags: string[];
   verifiedBadge: boolean;
+};
+
+type UploadSignature = {
+  configured: boolean;
+  cloudName?: string;
+  apiKey?: string;
+  folder?: string;
+  timestamp?: number;
+  signature?: string;
 };
 
 export function ReportVerification({ onSaved }: { onSaved?: () => void }) {
@@ -26,23 +36,51 @@ export function ReportVerification({ onSaved }: { onSaved?: () => void }) {
     window.setTimeout(() => setFeedback(null), 3600);
   }
 
+  async function uploadFile(nextFile: File) {
+    const signatureResponse = await fetch("/api/uploads/sign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderType: "reports" })
+    });
+    const signature = (await signatureResponse.json().catch(() => null)) as UploadSignature | null;
+
+    if (
+      !signature?.configured ||
+      !signature.cloudName ||
+      !signature.apiKey ||
+      !signature.folder ||
+      !signature.timestamp ||
+      !signature.signature
+    ) {
+      return `local://${nextFile.name}`;
+    }
+
+    const formData = new FormData();
+    formData.set("file", nextFile);
+    formData.set("api_key", signature.apiKey);
+    formData.set("folder", signature.folder);
+    formData.set("timestamp", `${signature.timestamp}`);
+    formData.set("signature", signature.signature);
+
+    const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${signature.cloudName}/auto/upload`, {
+      method: "POST",
+      body: formData
+    });
+    const uploaded = await uploadResponse.json().catch(() => null);
+
+    if (!uploadResponse.ok || !uploaded?.secure_url) {
+      throw new Error(uploaded?.error?.message ?? "File upload failed.");
+    }
+
+    return uploaded.secure_url as string;
+  }
+
   function verify() {
     if (!file) return;
 
     startTransition(async () => {
       try {
-        const response = await fetch("/api/ai/verify-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: file.name,
-            fileName: file.name,
-            fileType: file.type,
-            extractedText: "Patient report from verified hospital with lab reference range and doctor signature."
-          })
-        });
-        const data = await response.json();
-        setResult(data.verification);
+        const fileUrl = await uploadFile(file);
 
         const saveResponse = await fetch("/api/reports", {
           method: "POST",
@@ -50,19 +88,18 @@ export function ReportVerification({ onSaved }: { onSaved?: () => void }) {
           body: JSON.stringify({
             title: file.name,
             fileName: file.name,
+            fileUrl,
             fileType: file.type || "application/octet-stream",
-            ocrText: data.verification?.extractedText,
-            verificationStatus: data.verification?.status ?? "PENDING",
-            aiConfidence: data.verification?.confidence ?? 0,
-            flags: data.verification?.flags ?? []
+            extractedText: "Patient report from hospital with lab reference range and doctor signature."
           })
         });
         const saved = await saveResponse.json().catch(() => null);
 
         if (!saveResponse.ok) {
-          throw new Error(saved?.error ?? "Report verified but could not be saved");
+          throw new Error(saved?.error ?? "Report could not be verified and saved");
         }
 
+        setResult(saved?.verification ?? null);
         showFeedback({ type: "success", message: "Report verified and saved to patient records." });
         onSaved?.();
         window.dispatchEvent(new CustomEvent("meditrack:data-refresh"));
@@ -130,6 +167,11 @@ export function ReportVerification({ onSaved }: { onSaved?: () => void }) {
                 </p>
               ))}
             </div>
+          )}
+          {result.summary && (
+            <p className="mt-4 rounded-md bg-primary/10 px-3 py-2 text-sm text-muted-foreground">
+              {result.summary}
+            </p>
           )}
         </div>
       )}

@@ -125,6 +125,7 @@ export function formatReport(report: Report) {
     verificationStatus: report.verificationStatus,
     aiConfidence: report.aiConfidence,
     flags: report.flags,
+    summary: report.ocrText?.split("AI summary: ").at(1) ?? null,
     uploadedAt: report.uploadedAt.toISOString()
   };
 }

@@ -24,7 +24,7 @@ export const platformStats = [
   { label: "Patient records", value: "Lifetime", detail: "medical history in one place" },
   { label: "Appointments", value: "Live", detail: "slot holds and booking updates" },
   { label: "Report checks", value: "Fast", detail: "issuer and file review workflow" },
-  { label: "Security", value: "PIN + RBAC", detail: "separate patient, doctor, admin access" }
+  { label: "Security", value: "OTP + RBAC", detail: "separate patient, doctor, admin access" }
 ];
 
 export const featureCards = [
@@ -56,7 +56,7 @@ export const featureCards = [
     icon: ShieldCheck,
     title: "Secure Identity",
     description:
-      "PIN sign-in, email verification, document checks, role-based access, and audit-friendly architecture."
+      "Email OTP sign-in, document checks, role-based access, and audit-friendly architecture."
   },
   {
     icon: Ambulance,

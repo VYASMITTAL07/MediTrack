@@ -69,7 +69,7 @@ export default function AdminPortal() {
             Suspicious activity
           </p>
           <div className="mt-6 space-y-3">
-            {["MRI upload metadata mismatch", "License expiry needs renewal", "Repeated PIN failures", "Unusual report edit pattern"].map((item) => (
+            {["MRI upload metadata mismatch", "License expiry needs renewal", "Repeated OTP failures", "Unusual report edit pattern"].map((item) => (
               <div key={item} className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 p-4">
                 <span className="font-semibold">{item}</span>
                 <Badge className="text-amber-300">Review</Badge>

@@ -32,6 +32,7 @@ export function AppointmentBoard() {
   const [isPending, startTransition] = useTransition();
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const realtimeUserId = useRef<string>("");
 
   const showFeedback = useCallback((nextFeedback: FeedbackToastState) => {
     setFeedback(nextFeedback);
@@ -78,6 +79,10 @@ export function AppointmentBoard() {
   }, [loadSlots]);
 
   useEffect(() => {
+    realtimeUserId.current =
+      window.sessionStorage.getItem("meditrack_realtime_user") ?? crypto.randomUUID();
+    window.sessionStorage.setItem("meditrack_realtime_user", realtimeUserId.current);
+
     const url = process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin;
     const socket: Socket = io(url, {
       autoConnect: true,
@@ -135,7 +140,7 @@ export function AppointmentBoard() {
   }, [showFeedback]);
 
   function holdSlot(slotId: string) {
-    socketRef.current?.emit("slot:hold", { slotId, userId: "current-patient", date: selectedDate });
+    socketRef.current?.emit("slot:hold", { slotId, userId: realtimeUserId.current, date: selectedDate });
     setSelectedSlot(slotId);
     setSlots((current) =>
       current.map((slot) =>
@@ -171,7 +176,7 @@ export function AppointmentBoard() {
         setSelectedSlot(null);
         setStatus("Appointment confirmed and saved");
         showFeedback({ type: "success", message: "Appointment booked and saved." });
-        socketRef.current?.emit("slot:book", { slotId: selectedSlot, userId: "current-patient" });
+        socketRef.current?.emit("slot:book", { slotId: selectedSlot, userId: realtimeUserId.current });
         await loadSlots(slot.doctorId);
         window.dispatchEvent(new CustomEvent("meditrack:data-refresh"));
       } catch (error) {
