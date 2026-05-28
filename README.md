@@ -8,7 +8,6 @@ MediTrack is a production-style full-stack healthcare SaaS platform built for pa
 Designed with modern full-stack architecture using **Next.js 15, Prisma, PostgreSQL, Socket.io, Groq AI, and Vercel deployment infrastructure**.
 
 ---
-
 # ✨ Key Features
 
 ## 👨‍⚕️ Patient Portal
